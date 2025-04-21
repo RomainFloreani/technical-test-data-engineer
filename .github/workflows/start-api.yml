@@ -31,7 +31,7 @@ jobs:
           echo $! > uvicorn.pid
           echo "Uvicorn started in background with PID $(cat uvicorn.pid)"
 
-      - name: Extract
+      - name: Check to see if endpoints are up and running
         run: |
           source .venv/bin/activate
           echo "⏳ Waiting for FastAPI to start..."
@@ -46,6 +46,12 @@ jobs:
 
             cd src/data_pipeline
             python extract.py
+
+      - name: Run full ETL pipeline
+        run: |
+          source .venv/bin/activate
+          cd src/data_pipeline
+          python run_etl.py
 
       - name: Stop FastAPI server
         run: |
