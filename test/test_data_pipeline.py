@@ -5,7 +5,7 @@ from src.moovitamix_fastapi.classes_out import TracksOut, UsersOut, ListenHistor
 from datetime import datetime
 
 # ---------------------------
-# 🧪 Transform Tests
+# Transform Tests
 # ---------------------------
 @pytest.mark.unit
 def test_transform_tracks():
@@ -43,7 +43,7 @@ def test_transform_listen_history():
     assert result[0]["track_id"] in [101, 102]
 
 # ---------------------------
-# 💾 Load Tests
+# Load Tests
 # ---------------------------
 
 @pytest.mark.unit
@@ -60,7 +60,7 @@ def test_load_creates_tables(tmp_path):
     assert "listen_history" in tables
 
 # ---------------------------
-# 🌐 Extract Tests with Mocking
+# Extract Tests with Mocking
 # ---------------------------
 
 @pytest.mark.api

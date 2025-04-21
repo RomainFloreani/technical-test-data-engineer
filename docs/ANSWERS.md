@@ -4,7 +4,7 @@
 
 ### Sommaire:
 
-Cette solution consiste en la conception et l’implémentation d’un pipeline ETL complet, capable de récupérer des données via une API FastAPI, de les transformer, puis de les charger dans une base de données SQLite. L’ensemble du processus est automatisé via GitHub Actions, et accompagné d’un ensemble de tests automatisés.
+Cette solution consiste en la conception et l’implémentation d’un pipeline ETL complet, capable de récupérer des données via une API FastAPI, de les transformer, puis de les charger dans une base de données SQLite. L’ensemble du processus est automatisé via GitHub Actions, et accompagné d’un ensemble de tests automatisés. Le procesus contient un champ `schedule` pour être éxécuter tous les jours à 9:00 UTC.
 
 Le pipeline est structuré en deux étapes CI distinctes :
 
@@ -116,16 +116,145 @@ Pour rouler le pipeline:
 
 ### Étape 4
 
-_votre réponse ici_
+#### Quel système de base données
+
+Pour une mise en production d’un pipeline de données, je recommande l’utilisation de la base de données relationnelle PostgreSQL, ou l’une de ses variantes gérées dans le cloud, telles que Azure Database for PostgreSQL ou Amazon RDS.
+
+- PostgreSQL permet l’utilisation de requêtes SQL complexes et de fonctions personnalisées.
+- PostgreSQL prend en charge une large variété de types natif mais aussi des types complexes comme `JSON`.
+- PostgreSQL garantit l’Atomicité, la Cohérence, l’Isolation et la Durabilité des transactions, assurant ainsi l’intégrité des données.
+- PostgreSQL peut être connecté à des outils de visualisation comme Power BI, à des pipelines de machine learning, ou peut être utiliser dans d'autres cas d'usages.
+
+#### Schéma relationnel proposé
+
+Les données récupérées depuis l'API sont structurées dans une base de données relationnelle composée des trois tables suivants:
+
+`tracks`
+
+```
+| Colonne       | Type      | Description                           |
+|---------------|-----------|---------------------------------------|
+| id            | INTEGER   | Identifiant unique du morceau         |
+| name          | TEXT      | Nom du morceau                        |
+| artist        | TEXT      | Nom de l’artiste                      |
+| songwriters   | TEXT      | Auteurs-compositeurs                  |
+| duration      | TEXT      | Durée du morceau (format HH:MM:SS)    |
+| genres        | TEXT      | Genre musical                         |
+| album         | TEXT      | Nom de l’album                        |
+| created_at    | DATETIME  | Date de création de l’enregistrement  |
+| updated_at    | DATETIME  | Date de dernière mise à jour          |
+
+```
+
+`users`
+
+```
+| Colonne           | Type      | Description                           |
+|-------------------|-----------|---------------------------------------|
+| id                | INTEGER   | Identifiant unique de l’utilisateur   |
+| first_name        | TEXT      | Prénom                                |
+| last_name         | TEXT      | Nom de famille                        |
+| email             | TEXT      | Adresse e-mail                        |
+| gender            | TEXT      | Genre                                 |
+| favorite_genres   | TEXT      | Genres musicaux préférés              |
+| created_at        | DATETIME  | Date de création de l’enregistrement  |
+| updated_at        | DATETIME  | Date de dernière mise à jour          |
+```
+
+`listen_history`
+
+```
+| Colonne           | Type      | Description                           |
+|-------------------|-----------|---------------------------------------|
+| user_id           | INTEGER   | Identifiant unique de l’utilisateur   |
+| track_id          | TEXT      | Identifiant unique du morceau         |
+| created_at        | DATETIME  | Date de création de l’enregistrement  |
+| updated_at        | DATETIME  | Date de dernière mise à jour          |
+```
 
 ### Étape 5
 
-_votre réponse ici_
+Pour suivre la santé du pipeline de données exécuté quotidiennement, il est important de mettre en place une combinaison de logs, de métriques et éventuellement d’alertes.
+
+Les logs permettent de tracer l'exécution de chaque étape (extraction, transformation, chargement) et d'identifier rapidement l’origine d’un échec. Des métriques simples comme la durée d'exécution, le nombre d’enregistrements extraits ou insérés, ou la réussite des tests automatisés sont essentielles pour évaluer le bon fonctionnement global du pipeline.
+
+Voici quelques exemple de métriques utiles pour évaluer la santé du pipeline :
+
+```
+| Métrique                         | Description                                                        |
+|----------------------------------|--------------------------------------------------------------------|
+| Statut d’exécution               | Succès ou échec des jobs (tests, pipeline)                         |
+| Temps d’exécution                | Durée totale du pipeline et de chaque étape (ETL)                  |
+| Disponibilité de l’API           | Résultat de l’étape `test_endpoints()`                             |
+| Volume de données extraites      | Nombre d’éléments extraits pour chaque source (`tracks`, etc.)     |
+| Réussite des tests               | Nombre d’erreurs rencontrées dans les tests                        |
+```
+
+Des alertes peuvent être définies en fonction de ces métriques clés, mais également en cas d’échec d’un test unitaire.
+
+#### Évolutions futures:
+
+Il serait aussi possible d'ajouter des tests d’intégration ou de type smoke test pour valider l’état général de l’environnement avant de lancer l’exécution du pipeline.
+
+Enfin, bien que GitHub Actions soit suffisant pour une première version, la migration vers un moteur de workflow de données comme Databricks permettrait de bénéficier de fonctionnalités natives de surveillance, de planification avancée et de gestion des échecs de tâches.
 
 ### Étape 6
 
-_votre réponse ici_
+Une fois les données extraites et enregistrées chaque jour, il devient possible d’automatiser le calcul de recommandations musicales basées sur le comportement d’écoute des utilisateurs.
+
+L’idée est d’ajouter une étape juste après le pipeline ETL, qui analyserait l’historique d’écoute des utilisateurs et leur proposerait des morceaux qu’ils pourraient aimer. Par exemple, les recommandations pourraient se baser sur leurs genres musicaux préférés, leurs artistes les plus écoutés, ou sur des comportements similaires observés chez d'autres utilisateurs.
+
+Une première approche consisterait à utiliser un modèle simple de type KNN (K-Nearest Neighbors). Le modèle utiliserait les données combinées des trois tables (`users`, `tracks`, `listen_history`) pour créer une représentation de chaque utilisateur.
+
+#### Architecture proposée
+
+1. Transformation des données :
+   Combiner les données des trois tables pour créer une table par utilisateur contenant des caractéristiques (features) clés.
+
+2. Création de colonnes enrichies :
+   Par exemple :
+
+- Le genre le plus écouté
+- L’artiste le plus écouté
+- Le moment de la journée le plus fréquent pour écouter de la musique
+- La diversité des genres écoutés
+
+3. Construction de la table d’apprentissage :
+   Cette table contiendra une ligne par utilisateur avec les colonnes créées ci-dessus. On pourra aussi y inclure des agrégats statistiques (nombre total d’écoutes, durée moyenne, etc.).
+
+4. Application du modèle KNN :
+   En utilisant ces données, on peut appliquer un algorithme KNN pour identifier des utilisateurs similaires. Ensuite, on peut recommander des morceaux qu’ils ont écoutés mais que l’utilisateur cible n’a pas encore découverts.
+
+5. Sauvegarde des recommandations :
+   Les recommandations générées peuvent être enregistrées dans une table recommendations, avec les champs suivants : user_id, track_id, score, date_calcul.
+
+6. Automatisation :
+   Ce calcul peut être déclenché automatiquement chaque jour après le pipeline ETL. Il peut être intégré dans le même workflow GitHub Actions, ou bien orchestré via une plateforme dédiée comme Databricks afin d’assurer un meilleur suivi et une gestion des dépendances entre les étapes.
 
 ### Étape 7
 
-_votre réponse ici_
+Une fois qu’un modèle de recommandation est mis en place, il est important de le réentraîner régulièrement pour qu’il continue à proposer des résultats pertinents. Les préférences des utilisateurs peuvent évoluer, de nouveaux morceaux peuvent apparaître, et certains comportements peuvent changer avec le temps.
+
+L’objectif ici est donc d’automatiser ce processus de réentraînement, de manière planifiée, en utilisant les données actualisées du pipeline.
+
+Le réentraînement ne doit pas forcément ce faire de façon hebdomadaire ou mensuelle est souvent satisfaisate.
+
+Solution proposée:
+
+1. Réentraînement du modèle
+   Le modèle (par exemple un KNN) est réentraîné avec les nouvelles données. Cela peut se faire via un script Python déclenché automatiquement, qui charge les données, entraîne le modèle, puis le sauvegarde.
+2. Sauvegarde et versionning du modèle
+   Le modèle entraîné est sauvegardé dans un fichier. Cela permet de suivre l’évolution du modèle dans le temps et de revenir à une version antérieure en cas de problème.
+3. Remplacement du modèle utilisé en production
+   Une fois le nouveau modèle validé, il peut remplacer celui utilisé pour le calcul quotidien des recommandations.
+4. Procéder au réeentraînement dans un moteur de workflow comme Databricks.
+
+Il faut aussi implémenter un système de suivi pour savoir si le modèle fonctoinne et les utilisateurs sont satisfaits:
+
+- Un champ `feedback` (like/dislike) ou un taux de clic sur les morceaux recommandés.
+- Une analyse de si l’utilisateur a effectivement écouté ou ignoré le morceau recommandé
+- Le suivi de la performance des recommandations dans le temps (adoption, taux d’écoute, skip rate)
+
+Ces données permettent ensuite de réévaluer la qualité du modèle et d'ajuster les algorithmes ou les règles.
+
+Il se peut aussi que pour améliorer le modèles créer des APIs supplémentaires pour récupérer plus d'informations. Il faut nuancer car plus d'informations n'est pas nécessérairement mieux au problèmes mais il est important de faire du bon "feature engineering" pour trouver quels colonnes et champs sont clés pour le dévelopmeent du modèles.
