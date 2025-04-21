@@ -31,11 +31,21 @@ jobs:
           echo $! > uvicorn.pid
           echo "Uvicorn started in background with PID $(cat uvicorn.pid)"
 
-      - name: Run Python Step here
+      - name: Extract
         run: |
           source .venv/bin/activate
-          cd src/data_pipeline
-          python extract.py
+          echo "⏳ Waiting for FastAPI to start..."
+            for i in {1..10}; do
+              if curl --silent http://localhost:8000/docs > /dev/null; then
+                echo "✅ FastAPI is up!"
+                break
+              fi
+              echo "🔁 Still waiting... ($i/10)"
+              sleep 2
+            done
+
+            cd src/data_pipeline
+            python extract.py
 
       - name: Stop FastAPI server
         run: |
