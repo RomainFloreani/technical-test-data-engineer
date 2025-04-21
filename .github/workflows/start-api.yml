@@ -31,7 +31,7 @@ jobs:
           echo $! > uvicorn.pid
           echo "Uvicorn started in background with PID $(cat uvicorn.pid)"
 
-      - name: Run Python Step here:
+      - name: Run Python Step here
         run: |
           source .venv/bin/activate
           cd src/data_pipeline
