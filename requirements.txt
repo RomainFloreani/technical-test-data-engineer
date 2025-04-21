@@ -3,3 +3,4 @@ fastapi==0.95.2
 uvicorn
 fastapi_pagination==0.12.14
 pytest
+requests

@@ -35,7 +35,7 @@ jobs:
         run: |
           source .venv/bin/activate
           cd src/data_pipeline
-          python test.py
+          python extract.py
 
       - name: Stop FastAPI server
         run: |
