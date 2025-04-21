@@ -1,10 +1,11 @@
-name: Start FastAPI Server
+name: CI Pipeline
 
 on:
-  workflow_dispatch: # lets you trigger manually in the GitHub UI
+  workflow_dispatch:
 
 jobs:
-  start-api:
+  tests:
+    name: Run Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -16,44 +17,98 @@ jobs:
         with:
           python-version: "3.9"
 
-      - name: Create virtual environment and install dependencies
+      - name: Install dependencies
         run: |
           python -m venv .venv
           source .venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run FastAPI server with Uvicorn
+      - name: Run unit tests
+        run: |
+          source .venv/bin/activate
+          pytest -m "unit" --disable-warnings -v
+
+      - name: Start FastAPI server
         run: |
           source .venv/bin/activate
           cd src/moovitamix_fastapi
           nohup python -m uvicorn main:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
-          echo $! > uvicorn.pid
-          echo "Uvicorn started in background with PID $(cat uvicorn.pid)"
+          echo $! > ../../uvicorn.pid
+          cd ../../
 
-      - name: Check to see if endpoints are up and running
+      - name: Wait for FastAPI to start
+        run: |
+          for i in {1..10}; do
+            if curl --silent http://localhost:8000/docs > /dev/null; then
+              echo "✅ FastAPI is up!"
+              break
+            fi
+            echo "⏳ Waiting for FastAPI to start ($i/10)"
+            sleep 2
+          done
+
+      - name: Run API-dependent tests
         run: |
           source .venv/bin/activate
-          echo "⏳ Waiting for FastAPI to start..."
-            for i in {1..10}; do
-              if curl --silent http://localhost:8000/docs > /dev/null; then
-                echo "✅ FastAPI is up!"
-                break
-              fi
-              echo "🔁 Still waiting... ($i/10)"
-              sleep 2
-            done
+          pytest -m "api" --disable-warnings -v
 
-            cd src/data_pipeline
-            python extract.py
+      - name: Stop FastAPI server
+        run: |
+          if [ -f uvicorn.pid ]; then
+            kill $(cat uvicorn.pid)
+            echo "🛑 Uvicorn server stopped"
+          else
+            echo "⚠️ PID file not found"
+          fi
 
-      - name: Run full ETL pipeline
+  pipeline:
+    name: Run ETL Pipeline
+    runs-on: ubuntu-latest
+    needs: tests
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start FastAPI server
+        run: |
+          source .venv/bin/activate
+          cd src/moovitamix_fastapi
+          nohup python -m uvicorn main:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
+          echo $! > ../../uvicorn.pid
+          cd ../../
+
+      - name: Wait for FastAPI to start
+        run: |
+          for i in {1..10}; do
+            if curl --silent http://localhost:8000/docs > /dev/null; then
+              echo "✅ FastAPI is up!"
+              break
+            fi
+            echo "⏳ Waiting for FastAPI to start ($i/10)"
+            sleep 2
+          done
+
+      - name: Run ETL
         run: |
           source .venv/bin/activate
           cd src/data_pipeline
           python run_etl.py
 
-      - name: Inspect SQLite tables
+      - name: Inspect SQLite
         run: |
           source .venv/bin/activate
           cd src/data_pipeline
@@ -61,8 +116,8 @@ jobs:
 
       - name: Stop FastAPI server
         run: |
-          if [ -f src/moovitamix_fastapi/uvicorn.pid ]; then
-            kill $(cat src/moovitamix_fastapi/uvicorn.pid)
+          if [ -f uvicorn.pid ]; then
+            kill $(cat uvicorn.pid)
             echo "🛑 Uvicorn server stopped"
           else
             echo "⚠️ PID file not found"
