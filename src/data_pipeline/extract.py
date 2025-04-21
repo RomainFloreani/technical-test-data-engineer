@@ -9,11 +9,11 @@ def test_endpoints():
         try:
             response = requests.get(url)
             if response.status_code == 200:
-                print(f"✅ {endpoint} returned 200 OK")
+                print(f"{endpoint} returned 200 OK")
             else:
-                print(f"❌ {endpoint} returned status {response.status_code}")
+                print(f"{endpoint} returned status {response.status_code}")
         except requests.RequestException as e:
-            print(f"🔥 Error reaching {endpoint}: {e}")
+            print(f"Error reaching {endpoint}: {e}")
 
 def fetch_all_data():
     """

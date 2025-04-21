@@ -17,7 +17,7 @@ def run_etl():
 
     load_to_db(tracks, users, history)
 
-    print("✅ ETL complete!")
+    print("ETL complete!")
 
 if __name__ == "__main__":
     run_etl()

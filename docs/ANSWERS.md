@@ -118,13 +118,12 @@ Pour rouler le pipeline:
 
 #### Quel système de base données
 
-Pour une mise en production d'une pipeline de données, je recommande l'utilisaiton de base de données **PostgreSQL**, ou l'une variantes gérées dans le cloud (Azure PostgreSql, Amazon RDS ou Google Cloud SQL).
+Pour une mise en production d’un pipeline de données, je recommande l’utilisation de la base de données relationnelle PostgreSQL, ou l’une de ses variantes gérées dans le cloud, telles que Azure Database for PostgreSQL ou Amazon RDS.
 
-- Robustesse et fiabilité: PostreSQL est un SGBD open source éprouvé, reconnu pour sa stablité en produciton.
-- Support avancé des types données: Excellente prise en charge des types complexes comme `JSON`, `ARRAY`, ou `TIMESTAMP`, utiles dans le contexte de la modélisation des données musicales ou historique.
-- Scalabilité: Peut évoluer pour gérer de grands volume de données avec des options de partionnement, indexaiton et replication.
-- Écosystème riche: Compatible avec de nombreux outils d’analytique, de visualisation (ex. : Metabase, Power BI), ou de machine learning.
-- sécurité et conformité: Possibilité d'intégration avec des systèmes d'authentification d'entreprise et de configuration fine des droits d'accès.
+- PostgreSQL permet l’utilisation de requêtes SQL complexes et de fonctions personnalisées.
+- PostgreSQL prend en charge une large variété de types natif mais aussi des types complexes comme `JSON`.
+- PostgreSQL garantit l’Atomicité, la Cohérence, l’Isolation et la Durabilité des transactions, assurant ainsi l’intégrité des données.
+- PostgreSQL peut être connecté à des outils de visualisation comme Power BI, à des pipelines de machine learning, ou peut être utiliser dans d'autres cas d'usages.
 
 #### Schéma relationnel proposé
 
@@ -175,15 +174,11 @@ Les données récupérées depuis l'API sont structurées dans une base de donn�
 
 ### Étape 5
 
-Pour assurer la fiabilité et la transparence de l’exécution quotidienne du pipeline de données, il est essentiel de mettre en place un système de supervision (monitoring). Cela permet de détecter rapidement les anomalies, les échecs ou les dégradations de performance.
+Pour suivre la santé du pipeline de données exécuté quotidiennement, il est important de mettre en place une combinaison de logs, de métriques et éventuellement d’alertes.
 
-Dans un premier temps, une approche simple et efficace consiste à :
+Les logs permettent de tracer l'exécution de chaque étape (extraction, transformation, chargement) et d'identifier rapidement l’origine d’un échec. Des métriques simples comme la durée d'exécution, le nombre d’enregistrements extraits ou insérés, ou la réussite des tests automatisés sont essentielles pour évaluer le bon fonctionnement global du pipeline.
 
-- Utiliser les logs des étapes du pipeline : chaque étape (extract, transform, load) génère des messages explicites sur son état (✅ terminé, ❌ échec, etc.).
-- Superviser les statuts d’exécution via GitHub Actions : l’interface CI fournit un aperçu rapide des succès/échecs, avec des étapes bien segmentées.
-- Utiliser des notifications automatiques (optionnel) : on peut configurer des notifications par e-mail ou Slack via GitHub Actions en cas d’échec.
-
-Voici quelques indicateurs utiles pour évaluer la santé du pipeline :
+Voici quelques exemple de métriques utiles pour évaluer la santé du pipeline :
 
 ```
 | Métrique                         | Description                                                        |
@@ -192,105 +187,74 @@ Voici quelques indicateurs utiles pour évaluer la santé du pipeline :
 | Temps d’exécution                | Durée totale du pipeline et de chaque étape (ETL)                  |
 | Disponibilité de l’API           | Résultat de l’étape `test_endpoints()`                             |
 | Volume de données extraites      | Nombre d’éléments extraits pour chaque source (`tracks`, etc.)     |
-| Erreurs de parsing/transformation| Nombre ou type d’erreurs rencontrées                               |
-| Taux d’insertion en base         | Nombre de lignes insérées avec succès vs. échecs                   |
+| Réussite des tests               | Nombre d’erreurs rencontrées dans les tests                        |
 ```
+
+Des alertes peuvent être définies en fonction de ces métriques clés, mais également en cas d’échec d’un test unitaire.
 
 #### Évolutions futures:
 
-À moyen terme, il serait pertinent d’ajouter un moteur de workflow tel que Databricks, qui offrent :
+Il serait aussi possible d'ajouter des tests d’intégration ou de type smoke test pour valider l’état général de l’environnement avant de lancer l’exécution du pipeline.
 
-- Un tableau de bord de monitoring intégré
-- La possibilité de redémarrer des étapes échouées
-- Un historique détaillé des exécutions
-- Des alertes natives en cas d’anomalie
+Enfin, bien que GitHub Actions soit suffisant pour une première version, la migration vers un moteur de workflow de données comme Databricks permettrait de bénéficier de fonctionnalités natives de surveillance, de planification avancée et de gestion des échecs de tâches.
 
 ### Étape 6
 
-L’objectif est d’automatiser le calcul des recommandations musicales à partir des données déjà extraites et stockées dans la base. Ce calcul pourrait, par exemple, s’appuyer sur l’historique d’écoute des utilisateurs pour leur proposer des morceaux similaires ou populaires dans leurs genres préférés.
+Une fois les données extraites et enregistrées chaque jour, il devient possible d’automatiser le calcul de recommandations musicales basées sur le comportement d’écoute des utilisateurs.
 
-#### Architecture proposée:
+L’idée est d’ajouter une étape juste après le pipeline ETL, qui analyserait l’historique d’écoute des utilisateurs et leur proposerait des morceaux qu’ils pourraient aimer. Par exemple, les recommandations pourraient se baser sur leurs genres musicaux préférés, leurs artistes les plus écoutés, ou sur des comportements similaires observés chez d'autres utilisateurs.
 
-Voici les étapes du processus d’automatisation :
+Une première approche consisterait à utiliser un modèle simple de type KNN (K-Nearest Neighbors). Le modèle utiliserait les données combinées des trois tables (`users`, `tracks`, `listen_history`) pour créer une représentation de chaque utilisateur.
 
-1. Déclencheur quotidien : une tâche planifiée (cron) lance le calcul chaque jour, après la fin du pipeline ETL.
-2. Lecture des données : les données sont chargées depuis la base de données (ex. : SQLite, PostgreSQL).
-3. Application d’un algorithme de recommandation :
-   - Recommandation basée sur les genres favoris
-   - Fréquence d’écoute par utilisateur
-   - Coécoute (collaborative filtering)
-4. Enregistrement des résultats dans une table dédiée recommendations :
-   - `user_id`,`track_id`,`score`,`date_calcul`
+#### Architecture proposée
 
-Cette tâche peut être orchestrée à l'aide de:
+1. Transformation des données :
+   Combiner les données des trois tables pour créer une table par utilisateur contenant des caractéristiques (features) clés.
 
-- Un job GitHub Actions supplémentaire déclenché après l’ETL
-- Ou idéalement, un moteur de workflow comme Prefect, Airflow, ou Databricks Workflows, permettant :
-  - La gestion des dépendences (exécuter le calcul après l'ETL)
-  - La gestion des échecs
-  - La visualization de l'exécution
+2. Création de colonnes enrichies :
+   Par exemple :
 
-```
-def calculate_recommendations():
-    # Connexion à la base
-    conn = sqlite3.connect("music_data.db")
+- Le genre le plus écouté
+- L’artiste le plus écouté
+- Le moment de la journée le plus fréquent pour écouter de la musique
+- La diversité des genres écoutés
 
-    # Exemple simplifié : recommandations par genre préféré
-    query = """
-    SELECT users.id as user_id, tracks.id as track_id, tracks.genres
-    FROM users
-    JOIN tracks ON tracks.genres = users.favorite_genres
-    """
-    rows = conn.execute(query).fetchall()
+3. Construction de la table d’apprentissage :
+   Cette table contiendra une ligne par utilisateur avec les colonnes créées ci-dessus. On pourra aussi y inclure des agrégats statistiques (nombre total d’écoutes, durée moyenne, etc.).
 
-    # Transformation en résultats de recommandations
-    recommendations = [
-        {"user_id": r[0], "track_id": r[1], "score": 1.0} for r in rows
-    ]
+4. Application du modèle KNN :
+   En utilisant ces données, on peut appliquer un algorithme KNN pour identifier des utilisateurs similaires. Ensuite, on peut recommander des morceaux qu’ils ont écoutés mais que l’utilisateur cible n’a pas encore découverts.
 
-    # Insertion dans une table recommendations
-    ...
-```
+5. Sauvegarde des recommandations :
+   Les recommandations générées peuvent être enregistrées dans une table recommendations, avec les champs suivants : user_id, track_id, score, date_calcul.
 
-![Diagramme mermaid]()
+6. Automatisation :
+   Ce calcul peut être déclenché automatiquement chaque jour après le pipeline ETL. Il peut être intégré dans le même workflow GitHub Actions, ou bien orchestré via une plateforme dédiée comme Databricks afin d’assurer un meilleur suivi et une gestion des dépendances entre les étapes.
 
 ### Étape 7
 
-Pour que le système de recommandation reste pertinent dans le temps, il est essentiel de mettre à jour régulièrement le modèle utilisé. Cela permet de tenir compte des nouveaux utilisateurs, morceaux, comportements d’écoute ou tendances musicales.
+Une fois qu’un modèle de recommandation est mis en place, il est important de le réentraîner régulièrement pour qu’il continue à proposer des résultats pertinents. Les préférences des utilisateurs peuvent évoluer, de nouveaux morceaux peuvent apparaître, et certains comportements peuvent changer avec le temps.
 
-1. Déclancheur programmé:
-   Le réentraînement peut être planifié à une fréquence adaptée (par exemple chaque semaine ou chaque mois) à l’aide :
+L’objectif ici est donc d’automatiser ce processus de réentraînement, de manière planifiée, en utilisant les données actualisées du pipeline.
 
-   - D'une tâche `cron`
-   - D'un moteur de workflow tel que Prefect, Airflow, ou Databricks
+Le réentraînement ne doit pas forcément ce faire de façon hebdomadaire ou mensuelle est souvent satisfaisate.
 
-2. Chargement des données actualisées
-   Le script de réentraînement se base sur les données extraites et transformées, présentes en base (ex. : listen_history, users, tracks).
+Solution proposée:
 
-3. Prétraitement & feature engineering
+1. Réentraînement du modèle
+   Le modèle (par exemple un KNN) est réentraîné avec les nouvelles données. Cela peut se faire via un script Python déclenché automatiquement, qui charge les données, entraîne le modèle, puis le sauvegarde.
+2. Sauvegarde et versionning du modèle
+   Le modèle entraîné est sauvegardé dans un fichier. Cela permet de suivre l’évolution du modèle dans le temps et de revenir à une version antérieure en cas de problème.
+3. Remplacement du modèle utilisé en production
+   Une fois le nouveau modèle validé, il peut remplacer celui utilisé pour le calcul quotidien des recommandations.
+4. Procéder au réeentraînement dans un moteur de workflow comme Databricks.
 
-   - Construction de matrices utilisateurs/morceaux
-   - Encodage des genres, fréquence d'écoute, etc.
+Il faut aussi implémenter un système de suivi pour savoir si le modèle fonctoinne et les utilisateurs sont satisfaits:
 
-4. Entraînement du modèle:
+- Un champ `feedback` (like/dislike) ou un taux de clic sur les morceaux recommandés.
+- Une analyse de si l’utilisateur a effectivement écouté ou ignoré le morceau recommandé
+- Le suivi de la performance des recommandations dans le temps (adoption, taux d’écoute, skip rate)
 
-   - Algorithmes possibles : KNN, SVD, ALS, modèles de deep learning, etc.
-   - Évaluation automatique des performances (précision, rappel, etc.)
+Ces données permettent ensuite de réévaluer la qualité du modèle et d'ajuster les algorithmes ou les règles.
 
-5. Versionnement et déploiement
-
-   - Le modèle est enregistré (ex. : via joblib, MLflow ou pickle)
-   - Il peut être versionné et utilisé par le calcul quotidien des recommandations
-
-6. Journalisation et monitoring
-
-   - Journal des performances du modèle
-   - Notifications en cas d’échec ou de baisse de qualité
-
-Exemple d'orchestration:
-
-- exécution de la donnée RAW
-- Roule le réentrainement chaque semaine.
-- Générer des recommendations à partir du modèle entraîné.
-
-![Diagramme Mermaid]()
+Il se peut aussi que pour améliorer le modèles créer des APIs supplémentaires pour récupérer plus d'informations. Il faut nuancer car plus d'informations n'est pas nécessérairement mieux au problèmes mais il est important de faire du bon "feature engineering" pour trouver quels colonnes et champs sont clés pour le dévelopmeent du modèles.

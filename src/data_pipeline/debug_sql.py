@@ -5,7 +5,7 @@ DB_PATH = "music_data.db"
 TABLES = ["tracks", "users", "listen_history"]
 
 def show_table_data(conn, table):
-    print(f"\n🔎 Table: {table}")
+    print(f"\nTable: {table}")
     try:
         cursor = conn.execute(f"SELECT * FROM {table} LIMIT 5")
         rows = cursor.fetchall()
@@ -15,7 +15,7 @@ def show_table_data(conn, table):
         else:
             print("⚠️ No rows found.")
     except Exception as e:
-        print(f"❌ Error reading table {table}: {e}")
+        print(f"Error reading table {table}: {e}")
 
 def debug_all_tables():
     conn = sqlite3.connect(DB_PATH)
