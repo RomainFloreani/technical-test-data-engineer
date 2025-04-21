@@ -257,4 +257,6 @@ Il faut aussi implémenter un système de suivi pour savoir si le modèle foncto
 
 Ces données permettent ensuite de réévaluer la qualité du modèle et d'ajuster les algorithmes ou les règles.
 
-Il se peut aussi que pour améliorer le modèles créer des APIs supplémentaires pour récupérer plus d'informations. Il faut nuancer car plus d'informations n'est pas nécessérairement mieux au problèmes mais il est important de faire du bon "feature engineering" pour trouver quels colonnes et champs sont clés pour le dévelopmeent du modèles.
+Pour améliorer les performances du modèle de machine learning, il serait possible d'ajouter des APIs supplémentaires afin de récupérer davantage d'informations sur les utilisateurs, les morceaux ou leur contexte d'écoute. Cependant, il est important de nuancer : plus de données ne signifie pas nécessairement un meilleur modèle.
+
+L’essentiel est de mettre en place un bon processus de feature engineering, c’est-à-dire identifier les variables réellement utiles et pertinentes pour le modèle. Il faut donc tester, analyser et sélectionner les colonnes qui ont le plus d’impact sur la qualité des recommandations, plutôt que de multiplier les sources de données sans objectif clair.
