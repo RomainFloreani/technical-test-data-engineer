@@ -27,6 +27,7 @@ jobs:
       - name: Run unit tests
         run: |
           source .venv/bin/activate
+          export PYTHONPATH=$PYTHONPATH:$(pwd)/src
           pytest -m "unit" --disable-warnings -v
 
       - name: Start FastAPI server
@@ -51,6 +52,7 @@ jobs:
       - name: Run API-dependent tests
         run: |
           source .venv/bin/activate
+          export PYTHONPATH=$PYTHONPATH:$(pwd)/src
           pytest -m "api" --disable-warnings -v
 
       - name: Stop FastAPI server
