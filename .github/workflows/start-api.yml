@@ -53,6 +53,12 @@ jobs:
           cd src/data_pipeline
           python run_etl.py
 
+      - name: Inspect SQLite tables
+        run: |
+          source .venv/bin/activate
+          cd src/data_pipeline
+          python debug_sql.py
+
       - name: Stop FastAPI server
         run: |
           if [ -f src/moovitamix_fastapi/uvicorn.pid ]; then

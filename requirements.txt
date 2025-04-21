@@ -4,3 +4,4 @@ uvicorn
 fastapi_pagination==0.12.14
 pytest
 requests
+tabulate
