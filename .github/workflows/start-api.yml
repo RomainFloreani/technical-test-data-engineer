@@ -27,4 +27,13 @@ jobs:
         run: |
           source .venv/bin/activate
           cd src/moovitamix_fastapi
+          pkill -f uvicorn
+          echo "Stoppig the server"
           python -m uvicorn main:app --host 0.0.0.0 --port 8000
+
+      - name: Stopping FastAPI server when job is done
+        run: |
+          source .venv/bin/activate
+          cd src/moovitamix_fastapi
+          pkill -f uvicorn
+          echo "Stoppig the server... all the jobs have been completed"
