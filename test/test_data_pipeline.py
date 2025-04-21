@@ -2,6 +2,7 @@ import pytest
 import sqlite3
 from src.data_pipeline import extract, transform, load
 from src.moovitamix_fastapi.classes_out import TracksOut, UsersOut, ListenHistoryOut
+import datetime
 
 # ---------------------------
 # 🧪 Transform Tests
@@ -71,9 +72,12 @@ def test_fake_extract(requests_mock):
     from src.data_pipeline.extract import test_endpoints
     test_endpoints()
 
+
 @pytest.mark.api
 def test_tracks_extract(requests_mock):
     track = TracksOut.generate_fake().dict()
+    track["created_at"] = track["created_at"].isoformat()
+    track["updated_at"] = track["updated_at"].isoformat()
     requests_mock.get("http://localhost:8000/tracks", json={"items": [track]}, status_code=200)
     response = extract.requests.get("http://localhost:8000/tracks")
     assert response.status_code == 200
@@ -82,6 +86,8 @@ def test_tracks_extract(requests_mock):
 @pytest.mark.api
 def test_users_extract(requests_mock):
     user = UsersOut.generate_fake().dict()
+    user["created_at"] = user["created_at"].isoformat()
+    user["updated_at"] = user["updated_at"].isoformat()
     requests_mock.get("http://localhost:8000/users", json={"items": [user]}, status_code=200)
     response = extract.requests.get("http://localhost:8000/users")
     assert response.status_code == 200
@@ -89,7 +95,9 @@ def test_users_extract(requests_mock):
 
 @pytest.mark.api
 def test_listens_extract(requests_mock):
-    history = ListenHistoryOut(user_id=1, items=[1, 2]).dict()
+    history = ListenHistoryOut(user_id=1, items=[1, 2],created_at=datetime.now(),updated_at=datetime.now()).dict()
+    history["created_at"] = history["created_at"].isoformat()
+    history["updated_at"] = history["updated_at"].isoformat()
     requests_mock.get("http://localhost:8000/listen_history", json={"items": [history]}, status_code=200)
     response = extract.requests.get("http://localhost:8000/listen_history")
     assert response.status_code == 200
