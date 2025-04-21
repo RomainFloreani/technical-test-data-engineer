@@ -2,7 +2,7 @@ import pytest
 import sqlite3
 from src.data_pipeline import extract, transform, load
 from src.moovitamix_fastapi.classes_out import TracksOut, UsersOut, ListenHistoryOut
-import datetime
+from datetime import datetime
 
 # ---------------------------
 # 🧪 Transform Tests
