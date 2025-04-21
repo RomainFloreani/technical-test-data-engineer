@@ -27,13 +27,21 @@ jobs:
         run: |
           source .venv/bin/activate
           cd src/moovitamix_fastapi
-          pkill -f uvicorn
-          echo "Stoppig the server"
-          python -m uvicorn main:app --host 0.0.0.0 --port 8000
+          nohup python -m uvicorn main:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
+          echo $! > uvicorn.pid
+          echo "Uvicorn started in background with PID $(cat uvicorn.pid)"
 
-      - name: Stopping FastAPI server when job is done
+      - name: Run Python Step here:
         run: |
           source .venv/bin/activate
-          cd src/moovitamix_fastapi
-          pkill -f uvicorn
-          echo "Stoppig the server... all the jobs have been completed"
+          cd src/data_pipeline
+          python test.py
+
+      - name: Stop FastAPI server
+        run: |
+          if [ -f src/moovitamix_fastapi/uvicorn.pid ]; then
+            kill $(cat src/moovitamix_fastapi/uvicorn.pid)
+            echo "🛑 Uvicorn server stopped"
+          else
+            echo "⚠️ PID file not found"
+          fi
