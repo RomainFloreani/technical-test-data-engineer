@@ -1,0 +1,30 @@
+name: Start FastAPI Server
+
+on:
+  workflow_dispatch: # lets you trigger manually in the GitHub UI
+
+jobs:
+  start-api:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Create virtual environment and install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run FastAPI server with Uvicorn
+        run: |
+          source .venv/bin/activate
+          cd src/moovitamix_fastapi
+          python -m uvicorn main:app --host 0.0.0.0 --port 8000
